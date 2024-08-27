@@ -1,14 +1,23 @@
 "use client";
 
-import { timeplan } from "@/lib/timeplan";
+import { timeplan, schoolDay, schoolWeek } from "@/lib/timeplan";
 import { useEffect, useState } from "react";
 
 export default function TimeplanClient() {
   const [selectedDay, setSelectedDay] = useState(new Date().getDay());
+  //@ts-ignore
+  const [timeplanDay, setTimeplanDay] = useState<schoolDay>(
+    //@ts-ignore
+    timeplan.days.find((day) => dayStringToNumber(day.day) == selectedDay)
+  );
   const [showPauses, setShowPauses] = useState(false);
+  const [showRoomNumberNicknames, setShowRoomNumberNicknames] = useState(false);
 
   useEffect(() => {
     let showPausesItem = localStorage.getItem("showPauses");
+    let showRoomNumberNicknamesItem = localStorage.getItem(
+      "showRoomNumberNicknames"
+    );
 
     if (showPausesItem) {
       if (showPausesItem != "yes" && showPausesItem != "no") {
@@ -18,7 +27,34 @@ export default function TimeplanClient() {
 
       setShowPauses((prev) => (prev = showPausesItem == "yes" ? true : false));
     }
+
+    if (showRoomNumberNicknamesItem) {
+      if (
+        showRoomNumberNicknamesItem != "yes" &&
+        showRoomNumberNicknamesItem != "no"
+      ) {
+        localStorage.setItem("showRoomNumberNicknames", "no");
+        showRoomNumberNicknamesItem = localStorage.getItem(
+          "showRoomNumberNicknames"
+        );
+      }
+
+      setShowRoomNumberNicknames(
+        (prev) => (prev = showRoomNumberNicknamesItem == "yes" ? true : false)
+      );
+    }
   }, []);
+
+  useEffect(() => {
+    let timeplanDayFound = timeplan.days.find(
+      (day) => dayStringToNumber(day.day) == selectedDay
+    );
+
+    timeplanDayFound
+      ? setTimeplanDay((prev) => (prev = timeplanDayFound))
+      : //@ts-ignore
+        setTimeplanDay((prev) => (prev = {}));
+  }, [selectedDay]);
 
   return (
     <>
@@ -65,33 +101,62 @@ export default function TimeplanClient() {
         {dayNumberToString(selectedDay).toUpperCase()}
       </h2>
 
-      <div className="flex gap-[5px] w-fit mx-auto mt-[2dvh]">
-        <input
-          checked={showPauses}
-          onChange={() => {
-            setShowPauses((prev) => {
-              localStorage.setItem("showPauses", !prev ? "yes" : "no");
+      <div className="flex flex-wrap gap-[10px] w-fit max-w-[85%] mx-auto mt-[2dvh]">
+        <div className="flex gap-[5px]">
+          <input
+            checked={showPauses}
+            onChange={() => {
+              setShowPauses((prev) => {
+                localStorage.setItem("showPauses", !prev ? "yes" : "no");
 
-              return !prev;
-            });
-          }}
-          type="checkbox"
-          className="w-[25px] cursor-pointer"
-        />
-        <label className="text-sm lg:text-base text-white">Vis pauser</label>
+                return !prev;
+              });
+            }}
+            type="checkbox"
+            className="w-[25px] cursor-pointer"
+          />
+          <label className="text-sm lg:text-base text-white">Vis pauser</label>
+        </div>
+        <div className="flex gap-[5px]">
+          <input
+            checked={showRoomNumberNicknames}
+            onChange={() => {
+              setShowRoomNumberNicknames((prev) => {
+                localStorage.setItem(
+                  "showRoomNumberNicknames",
+                  !prev ? "yes" : "no"
+                );
+
+                return !prev;
+              });
+            }}
+            type="checkbox"
+            className="w-[25px] cursor-pointer"
+          />
+          <label className="text-sm lg:text-base text-white">
+            Vis kallenavn
+          </label>
+        </div>
       </div>
 
       <div className="w-[85%] mx-auto flex flex-col gap-[2dvh] items-center mt-[3dvh] mb-[5dvh]">
-        {timeplan.days
-          .find((day) => dayStringToNumber(day.day) == selectedDay)
-          ?.lessons.map((lesson, lessonIndex) => {
+        {timeplanDay.lessons ? (
+          timeplanDay.lessons.map((lesson, lessonIndex) => {
             if (!showPauses && lesson.type != "lesson") {
               return;
             }
 
             return (
               <div
-                className="bg-slate-200 rounded-md shadow-md w-[350px] max-w-[100%] p-[10px] flex gap-[10px]"
+                className={`${
+                  new Date().getTime() >
+                    classTimeToDate(lesson.starts).getTime() &&
+                  new Date().getTime() <
+                    classTimeToDate(lesson.ends).getTime() &&
+                  dayStringToNumber(timeplanDay.day) == new Date().getDay()
+                    ? "bg-blue-300 "
+                    : "bg-slate-200"
+                } rounded-md shadow-md w-[350px] max-w-[100%] p-[10px] flex gap-[10px]`}
                 key={lessonIndex}
               >
                 <div
@@ -117,14 +182,17 @@ export default function TimeplanClient() {
                     <h5 className="text-sm lg:text-base">{`${lesson.starts} - ${lesson.ends}`}</h5>
                     {lesson.type == "lesson" && (
                       <h5 className="ml-auto text-sm lg:text-base">
-                        {lesson.roomNumber}
+                        {showRoomNumberNicknames
+                          ? roomNumberToNickname(lesson.roomNumber!)
+                          : lesson.roomNumber}
                       </h5>
                     )}
                   </div>
                 </div>
               </div>
             );
-          }) ?? (
+          })
+        ) : (
           <h4 className="text-gray-300 text-base lg:text-xl font-bold">
             Her var det tomt...
           </h4>
@@ -184,4 +252,33 @@ function dayStringToNumber(string: string): number {
       return 0;
     }
   }
+}
+
+function roomNumberToNickname(
+  roomNumber: "2060" | "2061" | "2044" | "2065" | "2066" | "IDR3" | "3057"
+): string {
+  switch (roomNumber) {
+    case "2060": {
+      return "War Room";
+    }
+    case "2061": {
+      return "Colosseum";
+    }
+    case "2065": {
+      return "Casino";
+    }
+    case "2066": {
+      return "Lab";
+    }
+    default: {
+      return roomNumber;
+    }
+  }
+}
+
+function classTimeToDate(time: string): Date {
+  const [hours, minutes] = time.split(":").map(Number);
+  let newDate = new Date();
+  newDate.setHours(hours, minutes, 0, 0);
+  return newDate;
 }
