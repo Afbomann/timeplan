@@ -1,28 +1,67 @@
+export type schoolLessonNames =
+  | "Utvikling"
+  | "Samfunnskunnskap"
+  | "Brukerstøtte"
+  | "Driftsstøtte"
+  | "Yrkesfaglig fordypning"
+  | "Norsk"
+  | "Kroppsøving";
+
+export type schoolLessonRoomNumbers =
+  | "2060"
+  | "2061"
+  | "2044"
+  | "2065"
+  | "2066"
+  | "IDR3"
+  | "3057";
+
+export type schoolLessonTypes = "lesson" | "break" | "lunch";
+
+export type schoolDayDays =
+  | "Mon"
+  | "Tue"
+  | "Wed"
+  | "Thu"
+  | "Fri"
+  | "Sat"
+  | "Sun";
+
 export type schoolLesson = {
-  name?:
-    | "Utvikling"
-    | "Samfunnskunnskap"
-    | "Brukerstøtte"
-    | "Driftsstøtte"
-    | "Yrkesfaglig fordypning"
-    | "Norsk"
-    | "Kroppsøving";
-  roomNumber?: "2060" | "2061" | "2044" | "2065" | "2066" | "IDR3" | "3057";
-  type: "lesson" | "break" | "lunch";
+  name?: schoolLessonNames;
+  roomNumber?: schoolLessonRoomNumbers;
+  type: schoolLessonTypes;
   starts: string;
   ends: string;
 };
 
 export type schoolDay = {
-  day: "Mon" | "Tue" | "Wed" | "Thu" | "Fri";
+  day: schoolDayDays;
   lessons: schoolLesson[];
 };
 
-export type schoolWeek = {
+export type schoolTimetable = {
   days: schoolDay[];
 };
 
-export const timeplan: schoolWeek = {
+export const IT1_Timetable: schoolTimetable = {
+  days: [
+    {
+      day: "Mon",
+      lessons: [
+        {
+          name: "Utvikling",
+          roomNumber: "2060",
+          type: "lesson",
+          starts: "08:00",
+          ends: "08:45",
+        },
+      ],
+    },
+  ],
+};
+
+export const IT2_Timetable: schoolTimetable = {
   days: [
     {
       day: "Mon",

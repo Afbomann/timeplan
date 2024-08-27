@@ -1,23 +1,47 @@
 "use client";
 
-import { timeplan, schoolDay, schoolWeek } from "@/lib/timeplan";
+import {
+  IT1_Timetable,
+  IT2_Timetable,
+  schoolDay,
+  schoolDayDays,
+  schoolLessonNames,
+  schoolLessonTypes,
+  schoolTimetable,
+} from "@/lib/timeplan";
 import { useEffect, useState } from "react";
 
 export default function TimeplanClient() {
+  const [selectedTimetable, setSelectedTimetable] =
+    useState<schoolTimetable>(IT1_Timetable);
+  const [selectedTimetableString, setSelectedTimetableString] = useState("IT1");
   const [selectedDay, setSelectedDay] = useState(new Date().getDay());
-  //@ts-ignore
-  const [timeplanDay, setTimeplanDay] = useState<schoolDay>(
-    //@ts-ignore
-    timeplan.days.find((day) => dayStringToNumber(day.day) == selectedDay)
-  );
   const [showPauses, setShowPauses] = useState(false);
   const [showRoomNumberNicknames, setShowRoomNumberNicknames] = useState(false);
 
   useEffect(() => {
+    let timetableItem = localStorage.getItem("timetable");
     let showPausesItem = localStorage.getItem("showPauses");
     let showRoomNumberNicknamesItem = localStorage.getItem(
       "showRoomNumberNicknames"
     );
+
+    if (timetableItem) {
+      if (timetableItem != "IT1" && timetableItem != "IT2") {
+        localStorage.setItem("timetable", "IT1");
+        timetableItem = localStorage.getItem("timetable");
+      }
+
+      setSelectedTimetableString((prev) => (prev = timetableItem!));
+      setSelectedTimetable(
+        //@ts-ignore
+        (prev) =>
+          //@ts-ignore
+          (prev =
+            (timetableItem == "IT1" && IT1_Timetable) ||
+            (timetableItem == "IT2" && IT2_Timetable))
+      );
+    }
 
     if (showPausesItem) {
       if (showPausesItem != "yes" && showPausesItem != "no") {
@@ -44,17 +68,6 @@ export default function TimeplanClient() {
       );
     }
   }, []);
-
-  useEffect(() => {
-    let timeplanDayFound = timeplan.days.find(
-      (day) => dayStringToNumber(day.day) == selectedDay
-    );
-
-    timeplanDayFound
-      ? setTimeplanDay((prev) => (prev = timeplanDayFound))
-      : //@ts-ignore
-        setTimeplanDay((prev) => (prev = {}));
-  }, [selectedDay]);
 
   return (
     <>
@@ -103,6 +116,28 @@ export default function TimeplanClient() {
 
       <div className="flex flex-wrap gap-[10px] w-fit max-w-[85%] mx-auto mt-[2dvh]">
         <div className="flex gap-[5px]">
+          <select
+            value={selectedTimetableString}
+            className="rounded-md w-fit outline-none"
+            onChange={(event) => {
+              localStorage.setItem("timetable", event.target.value);
+              setSelectedTimetableString((prev) => (prev = event.target.value));
+              setSelectedTimetable(
+                //@ts-ignore
+                (prev) =>
+                  //@ts-ignore
+                  (prev =
+                    (event.target.value == "IT1" && IT1_Timetable) ||
+                    (event.target.value == "IT2" && IT2_Timetable))
+              );
+            }}
+          >
+            <option value="IT1">IT1</option>
+            <option value="IT2">IT2</option>
+          </select>
+          <label className="text-sm lg:text-base text-white">Timeplan</label>
+        </div>
+        <div className="flex gap-[5px]">
           <input
             checked={showPauses}
             onChange={() => {
@@ -115,7 +150,7 @@ export default function TimeplanClient() {
             type="checkbox"
             className="w-[25px] cursor-pointer"
           />
-          <label className="text-sm lg:text-base text-white">Vis pauser</label>
+          <label className="text-sm lg:text-base text-white">Pauser</label>
         </div>
         <div className="flex gap-[5px]">
           <input
@@ -134,58 +169,47 @@ export default function TimeplanClient() {
             className="w-[25px] cursor-pointer"
           />
           <label className="text-sm lg:text-base text-white">
-            Vis kallenavn
+            Rom kallenavn
           </label>
         </div>
       </div>
 
       <div className="w-[85%] mx-auto flex flex-col gap-[2dvh] items-center mt-[3dvh] mb-[5dvh]">
-        {timeplanDay.lessons ? (
-          timeplanDay.lessons.map((lesson, lessonIndex) => {
-            if (!showPauses && lesson.type != "lesson") {
+        {getTimetableSchoolDay(
+          selectedTimetable,
+          //@ts-ignore
+          dayNumberToStringShort(selectedDay)
+        ) ? (
+          getTimetableSchoolDay(
+            selectedTimetable,
+            //@ts-ignore
+            dayNumberToStringShort(selectedDay)
+          )?.lessons.map((schoolLesson, schoolLessonIndex) => {
+            if (schoolLesson.type != "lesson" && !showPauses) {
               return;
             }
 
             return (
               <div
-                className={`${
-                  new Date().getTime() >
-                    classTimeToDate(lesson.starts).getTime() &&
-                  new Date().getTime() <
-                    classTimeToDate(lesson.ends).getTime() &&
-                  dayStringToNumber(timeplanDay.day) == new Date().getDay()
-                    ? "bg-blue-300 "
-                    : "bg-slate-200"
-                } rounded-md shadow-md w-[350px] max-w-[100%] p-[10px] flex gap-[10px]`}
-                key={lessonIndex}
+                className={`bg-slate-200 p-[10px] rounded-md w-[350px] max-w-[100%] shadow-md flex gap-[10px]`}
+                key={schoolLessonIndex}
               >
                 <div
-                  className={`w-[15px] h-[15px] rounded-[50%] ${
-                    lesson.type == "break" && "bg-gray-500"
-                  } ${lesson.type == "lunch" && "bg-gray-500"} ${
-                    lesson.name == "Utvikling" && "bg-yellow-500"
-                  } ${lesson.name == "Brukerstøtte" && "bg-yellow-500"} ${
-                    lesson.name == "Driftsstøtte" && "bg-yellow-500"
-                  } ${
-                    lesson.name == "Yrkesfaglig fordypning" && "bg-yellow-500"
-                  } ${lesson.name == "Samfunnskunnskap" && "bg-blue-500"} ${
-                    lesson.name == "Norsk" && "bg-green-500"
-                  } ${lesson.name == "Kroppsøving" && "bg-red-500"}`}
+                  className={`${getSchoolLessonColor(
+                    schoolLesson.name ?? undefined,
+                    schoolLesson.type
+                  )} w-[15px] h-[15px] rounded-[50%]`}
                 />
                 <div className="w-full">
-                  <h4 className="font-bold text-sm lg:text-base">
-                    {(lesson.type == "lesson" && lesson.name) ||
-                      (lesson.type == "break" && "Pause") ||
-                      (lesson.type == "lunch" && "Lunsj")}
+                  <h4 className="text-sm lg:text-base font-bold">
+                    {(schoolLesson.type == "lesson" && schoolLesson.name) ||
+                      (schoolLesson.type == "break" && "Pause") ||
+                      (schoolLesson.type == "lunch" && "Lunsj")}
                   </h4>
                   <div className="flex">
-                    <h5 className="text-sm lg:text-base">{`${lesson.starts} - ${lesson.ends}`}</h5>
-                    {lesson.type == "lesson" && (
-                      <h5 className="ml-auto text-sm lg:text-base">
-                        {showRoomNumberNicknames
-                          ? roomNumberToNickname(lesson.roomNumber!)
-                          : lesson.roomNumber}
-                      </h5>
+                    <h5>{`${schoolLesson.starts} - ${schoolLesson.ends}`}</h5>
+                    {schoolLesson.type == "lesson" && (
+                      <h5 className="ml-auto">{schoolLesson.roomNumber}</h5>
                     )}
                   </div>
                 </div>
@@ -193,7 +217,7 @@ export default function TimeplanClient() {
             );
           })
         ) : (
-          <h4 className="text-gray-300 text-base lg:text-xl font-bold">
+          <h4 className="text-gray-100 text-lg lg:text-xl">
             Her var det tomt...
           </h4>
         )}
@@ -202,8 +226,8 @@ export default function TimeplanClient() {
   );
 }
 
-function dayNumberToString(number: number): string {
-  switch (number) {
+function dayNumberToString(dayNumber: number): string {
+  switch (dayNumber) {
     case 1: {
       return "Mandag";
     }
@@ -231,54 +255,65 @@ function dayNumberToString(number: number): string {
   }
 }
 
-function dayStringToNumber(string: string): number {
-  switch (string) {
-    case "Mon": {
-      return 1;
+function dayNumberToStringShort(
+  dayNumber: 1 | 2 | 3 | 4 | 5 | 6 | 7
+): schoolDayDays {
+  switch (dayNumber) {
+    case 1: {
+      return "Mon";
     }
-    case "Tue": {
-      return 2;
+    case 2: {
+      return "Tue";
     }
-    case "Wed": {
-      return 3;
+    case 3: {
+      return "Wed";
     }
-    case "Thu": {
-      return 4;
+    case 4: {
+      return "Thu";
     }
-    case "Fri": {
-      return 5;
+    case 5: {
+      return "Fri";
     }
-    default: {
-      return 0;
+    case 6: {
+      return "Sat";
     }
-  }
-}
-
-function roomNumberToNickname(
-  roomNumber: "2060" | "2061" | "2044" | "2065" | "2066" | "IDR3" | "3057"
-): string {
-  switch (roomNumber) {
-    case "2060": {
-      return "War Room";
-    }
-    case "2061": {
-      return "Colosseum";
-    }
-    case "2065": {
-      return "Casino";
-    }
-    case "2066": {
-      return "Lab";
-    }
-    default: {
-      return roomNumber;
+    case 7: {
+      return "Sun";
     }
   }
 }
 
-function classTimeToDate(time: string): Date {
-  const [hours, minutes] = time.split(":").map(Number);
-  let newDate = new Date();
-  newDate.setHours(hours, minutes, 0, 0);
-  return newDate;
+function getTimetableSchoolDay(
+  timetable: schoolTimetable,
+  day: schoolDayDays
+): schoolDay | null {
+  let timetableSchoolDayFound = timetable.days.find(
+    (schoolDay) => schoolDay.day == day
+  );
+
+  return timetableSchoolDayFound ? timetableSchoolDayFound : null;
+}
+
+function getSchoolLessonColor(
+  lessonName: schoolLessonNames | undefined,
+  lessonType: schoolLessonTypes
+): string | undefined {
+  if (
+    lessonName == "Utvikling" ||
+    lessonName == "Brukerstøtte" ||
+    lessonName == "Driftsstøtte" ||
+    lessonName == "Yrkesfaglig fordypning"
+  ) {
+    return "bg-yellow-500";
+  } else if (lessonName == "Samfunnskunnskap") {
+    return "bg-blue-500";
+  } else if (lessonName == "Norsk") {
+    return "bg-green-500";
+  } else if (lessonName == "Kroppsøving") {
+    return "bg-red-500";
+  }
+
+  if (lessonType != "lesson") {
+    return "bg-gray-500";
+  }
 }
