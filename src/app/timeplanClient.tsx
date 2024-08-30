@@ -5,7 +5,9 @@ import {
   IT2_Timetable,
   schoolDay,
   schoolDayDays,
+  schoolLesson,
   schoolLessonNames,
+  schoolLessonRoomNumbers,
   schoolLessonTypes,
   schoolTimetable,
 } from "@/lib/timeplan";
@@ -111,7 +113,7 @@ export default function TimeplanClient() {
       </div>
 
       <h2 className="text-xl lg:text-2xl font-bold text-white text-center mt-[5dvh]">
-        {dayNumberToString(selectedDay).toUpperCase()}
+        {getDayNumberInString(selectedDay).toUpperCase()}
       </h2>
 
       <div className="flex flex-wrap gap-[10px] w-fit max-w-[85%] mx-auto mt-[2dvh]">
@@ -175,47 +177,54 @@ export default function TimeplanClient() {
       </div>
 
       <div className="w-[85%] mx-auto flex flex-col gap-[2dvh] items-center mt-[3dvh] mb-[5dvh]">
-        {getTimetableSchoolDay(
-          selectedTimetable,
-          //@ts-ignore
-          dayNumberToStringShort(selectedDay)
-        ) ? (
-          getTimetableSchoolDay(
-            selectedTimetable,
-            //@ts-ignore
-            dayNumberToStringShort(selectedDay)
-          )?.lessons.map((schoolLesson, schoolLessonIndex) => {
-            if (schoolLesson.type != "lesson" && !showPauses) {
-              return;
-            }
+        {getTimetableSchoolDay(selectedTimetable, selectedDay) ? (
+          getTimetableSchoolDay(selectedTimetable, selectedDay)?.lessons.map(
+            (schoolLesson, schoolLessonIndex) => {
+              if (schoolLesson.type != "lesson" && !showPauses) {
+                return;
+              }
 
-            return (
-              <div
-                className={`bg-slate-200 p-[10px] rounded-md w-[350px] max-w-[100%] shadow-md flex gap-[10px]`}
-                key={schoolLessonIndex}
-              >
+              //add outline around current lesson outline outline-[4px]
+              //add a "next lesson" feature
+
+              return (
                 <div
-                  className={`${getSchoolLessonColor(
-                    schoolLesson.name ?? undefined,
-                    schoolLesson.type
-                  )} w-[15px] h-[15px] rounded-[50%]`}
-                />
-                <div className="w-full">
-                  <h4 className="text-sm lg:text-base font-bold">
-                    {(schoolLesson.type == "lesson" && schoolLesson.name) ||
-                      (schoolLesson.type == "break" && "Pause") ||
-                      (schoolLesson.type == "lunch" && "Lunsj")}
-                  </h4>
-                  <div className="flex">
-                    <h5>{`${schoolLesson.starts} - ${schoolLesson.ends}`}</h5>
-                    {schoolLesson.type == "lesson" && (
-                      <h5 className="ml-auto">{schoolLesson.roomNumber}</h5>
-                    )}
+                  className={`${
+                    isCurrentLesson(
+                      //@ts-ignore
+                      getTimetableSchoolDay(selectedTimetable, selectedDay),
+                      schoolLesson
+                    ) && "outline outline-[4px]"
+                  } bg-slate-200 p-[10px] rounded-md w-[350px] max-w-[100%] shadow-md flex gap-[10px]`}
+                  key={schoolLessonIndex}
+                >
+                  <div
+                    className={`${getSchoolLessonColor(
+                      schoolLesson.name ?? undefined,
+                      schoolLesson.type
+                    )} w-[15px] h-[15px] rounded-[50%]`}
+                  />
+                  <div className="w-full">
+                    <h4 className="text-sm lg:text-base font-bold">
+                      {(schoolLesson.type == "lesson" && schoolLesson.name) ||
+                        (schoolLesson.type == "break" && "Pause") ||
+                        (schoolLesson.type == "lunch" && "Lunsj")}
+                    </h4>
+                    <div className="flex">
+                      <h5>{`${schoolLesson.starts} - ${schoolLesson.ends}`}</h5>
+                      {schoolLesson.type == "lesson" && (
+                        <h5 className="ml-auto">
+                          {showRoomNumberNicknames
+                            ? getRoomNumberNickname(schoolLesson.roomNumber!)
+                            : schoolLesson.roomNumber}
+                        </h5>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })
+              );
+            }
+          )
         ) : (
           <h4 className="text-gray-100 text-lg lg:text-xl">
             Her var det tomt...
@@ -226,7 +235,7 @@ export default function TimeplanClient() {
   );
 }
 
-function dayNumberToString(dayNumber: number): string {
+function getDayNumberInString(dayNumber: number): string {
   switch (dayNumber) {
     case 1: {
       return "Mandag";
@@ -255,45 +264,6 @@ function dayNumberToString(dayNumber: number): string {
   }
 }
 
-function dayNumberToStringShort(
-  dayNumber: 1 | 2 | 3 | 4 | 5 | 6 | 7
-): schoolDayDays {
-  switch (dayNumber) {
-    case 1: {
-      return "Mon";
-    }
-    case 2: {
-      return "Tue";
-    }
-    case 3: {
-      return "Wed";
-    }
-    case 4: {
-      return "Thu";
-    }
-    case 5: {
-      return "Fri";
-    }
-    case 6: {
-      return "Sat";
-    }
-    case 7: {
-      return "Sun";
-    }
-  }
-}
-
-function getTimetableSchoolDay(
-  timetable: schoolTimetable,
-  day: schoolDayDays
-): schoolDay | null {
-  let timetableSchoolDayFound = timetable.days.find(
-    (schoolDay) => schoolDay.day == day
-  );
-
-  return timetableSchoolDayFound ? timetableSchoolDayFound : null;
-}
-
 function getSchoolLessonColor(
   lessonName: schoolLessonNames | undefined,
   lessonType: schoolLessonTypes
@@ -316,4 +286,98 @@ function getSchoolLessonColor(
   if (lessonType != "lesson") {
     return "bg-gray-500";
   }
+}
+
+function getLessonTimeInDate(lessonTime: string): Date {
+  const [hours, minutes] = lessonTime.split(":").map(Number);
+  let newDate = new Date();
+  newDate.setHours(hours, minutes, 0, 0);
+  return newDate;
+}
+
+function getRoomNumberNickname(roomNumber: schoolLessonRoomNumbers): string {
+  switch (roomNumber) {
+    case "2060": {
+      return "War Room";
+    }
+    case "2061": {
+      return "Colosseum";
+    }
+    case "2062": {
+      return "Akvariet";
+    }
+    case "2065": {
+      return "Casino";
+    }
+    case "2066": {
+      return "Lab";
+    }
+    default: {
+      return roomNumber;
+    }
+  }
+}
+
+function getDayNumberInStringShort(
+  dayNumber: number
+): schoolDayDays | "Invalid day number" {
+  switch (dayNumber) {
+    case 1: {
+      return "Mon";
+    }
+    case 2: {
+      return "Tue";
+    }
+    case 3: {
+      return "Wed";
+    }
+    case 4: {
+      return "Thu";
+    }
+    case 5: {
+      return "Fri";
+    }
+    case 6: {
+      return "Sat";
+    }
+    case 7: {
+      return "Sun";
+    }
+    default: {
+      return "Invalid day number";
+    }
+  }
+}
+
+function getTimetableSchoolDay(
+  timetable: schoolTimetable,
+  day: number
+): schoolDay | null {
+  let schoolDayFound = timetable.days.find(
+    (schoolDay) => schoolDay.day == getDayNumberInStringShort(day)
+  );
+
+  return schoolDayFound ? schoolDayFound : null;
+}
+
+function isCurrentLesson(
+  schoolDay: schoolDay,
+  schoolLesson: schoolLesson
+): boolean {
+  const dateNow = new Date();
+  const schoolLessonStartsDate = getLessonTimeInDate(schoolLesson.starts);
+  const schoolLessonEndsDate = getLessonTimeInDate(schoolLesson.ends);
+
+  if (schoolDay.day != getDayNumberInStringShort(dateNow.getDay())) {
+    return false;
+  }
+
+  if (
+    dateNow.getTime() >= schoolLessonStartsDate.getTime() &&
+    dateNow.getTime() <= schoolLessonEndsDate.getTime()
+  ) {
+    return true;
+  }
+
+  return false;
 }

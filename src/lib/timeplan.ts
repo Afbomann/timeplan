@@ -10,6 +10,7 @@ export type schoolLessonNames =
 export type schoolLessonRoomNumbers =
   | "2060"
   | "2061"
+  | "2062"
   | "2044"
   | "2065"
   | "2066"
